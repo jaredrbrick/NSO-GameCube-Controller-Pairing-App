@@ -441,13 +441,14 @@ class GCControllerEnabler:
 
         elif etype == 'connected' and si is not None:
             mac = event.get('mac')
+            controller_type = event.get('type', 'gc')
             mode = self._ble_pair_mode.pop(si, 'pair')
             if mode == 'autoscan':
-                self._on_auto_scan_connected(si, mac)
+                self._on_auto_scan_connected(si, mac, controller_type=controller_type)
             elif mode == 'pair':
-                self._on_pair_complete(si, mac)
+                self._on_pair_complete(si, mac, controller_type=controller_type)
             else:
-                self._on_reconnect_complete(si, mac)
+                self._on_reconnect_complete(si, mac, controller_type=controller_type)
 
         elif etype == 'connect_error' and si is not None:
             msg = event.get('msg', 'Connection failed')
@@ -735,7 +736,7 @@ class GCControllerEnabler:
         })
 
     def _on_pair_complete(self, slot_index: int, mac: str | None,
-                          error: str | None = None):
+                          error: str | None = None, controller_type: str = 'gc'):
         """Handle completion of BLE pairing attempt."""
         slot = self.slots[slot_index]
         sui = self.ui.slots[slot_index]
@@ -744,9 +745,10 @@ class GCControllerEnabler:
             slot.ble_connected = True
             slot.ble_address = mac
             slot.connection_mode = 'ble'
+            slot.controller_type = controller_type
 
             # Register device and load its calibration into this slot
-            self._add_known_ble_device(mac)
+            self._add_known_ble_device(mac, controller_type=controller_type)
             self._load_device_calibration(slot_index, mac)
 
             # Start input processor in BLE mode
@@ -782,12 +784,15 @@ class GCControllerEnabler:
         """Return list of known BLE MAC addresses (derived from device registry)."""
         return list(self._get_known_ble_devices().keys())
 
-    def _add_known_ble_device(self, address: str):
+    def _add_known_ble_device(self, address: str, controller_type: str = 'gc'):
         """Add a BLE device to the known registry (creates entry if new)."""
         devices = self.slot_calibrations[0].setdefault('known_ble_devices', {})
         addr_upper = address.upper()
         if addr_upper not in devices:
-            devices[addr_upper] = {}
+            devices[addr_upper] = {'controller_type': controller_type}
+            self._auto_save()
+        elif 'controller_type' not in devices[addr_upper]:
+            devices[addr_upper]['controller_type'] = controller_type
             self._auto_save()
 
     def _save_device_calibration(self, slot_index: int, mac: str):
@@ -810,6 +815,8 @@ class GCControllerEnabler:
         for key in BLE_DEVICE_CAL_KEYS:
             if key in dev_cal:
                 cal[key] = dev_cal[key]
+        # Load controller type from device registry
+        self.slots[slot_index].controller_type = dev_cal.get('controller_type', 'gc')
         # Refresh the CalibrationManager cache with new values
         self.slots[slot_index].cal_mgr.refresh_cache()
         # Redraw octagon and trigger markers with device's calibration
@@ -1027,7 +1034,8 @@ class GCControllerEnabler:
                 return i
         return None
 
-    def _on_auto_scan_connected(self, slot_index: int, mac: str):
+    def _on_auto_scan_connected(self, slot_index: int, mac: str,
+                                controller_type: str = 'gc'):
         """Handle successful auto-scan connection.
 
         Verifies the connected MAC is in the known list. If it's an unknown
@@ -1056,9 +1064,10 @@ class GCControllerEnabler:
         slot.ble_connected = True
         slot.ble_address = mac
         slot.connection_mode = 'ble'
+        slot.controller_type = controller_type
 
         # Load device's calibration into this slot
-        self._add_known_ble_device(mac)
+        self._add_known_ble_device(mac, controller_type=controller_type)
         self._load_device_calibration(slot_index, mac)
 
         # Start input processor in BLE mode
@@ -1209,7 +1218,8 @@ class GCControllerEnabler:
             "target_address": target_addr,
         })
 
-    def _on_reconnect_complete(self, slot_index: int, mac: str):
+    def _on_reconnect_complete(self, slot_index: int, mac: str,
+                               controller_type: str = 'gc'):
         """Handle successful BLE reconnection."""
         slot = self.slots[slot_index]
         if not mac:
@@ -1218,6 +1228,12 @@ class GCControllerEnabler:
 
         slot.ble_connected = True
         slot.ble_address = mac
+        slot.controller_type = controller_type
+        # Also load type from device registry (in case IPC didn't provide it)
+        devices = self._get_known_ble_devices()
+        dev_cal = devices.get(mac.upper(), {})
+        if dev_cal.get('controller_type'):
+            slot.controller_type = dev_cal['controller_type']
         slot.input_proc.start(mode='ble')
 
         sui = self.ui.slots[slot_index]
@@ -1517,7 +1533,8 @@ class GCControllerEnabler:
         slot = self.slots[slot_index]
         try:
             slot.emu_mgr.start('xbox360', slot_index=slot_index,
-                               rumble_callback=self._make_rumble_callback(slot_index))
+                               rumble_callback=self._make_rumble_callback(slot_index),
+                               controller_type=slot.controller_type)
             self.ui.update_emu_status(slot_index, "Connected & Ready")
             self.ui.update_tab_status(slot_index, connected=True, emulating=True)
         except Exception as e:
@@ -1529,7 +1546,8 @@ class GCControllerEnabler:
         slot = self.slots[slot_index]
         try:
             slot.emu_mgr.start('dsu', slot_index=slot_index,
-                               rumble_callback=self._make_rumble_callback(slot_index))
+                               rumble_callback=self._make_rumble_callback(slot_index),
+                               controller_type=slot.controller_type)
             port = getattr(slot.emu_mgr.gamepad, 'port', 26760)
             self.ui.update_emu_status(slot_index, f"DSU :{port} — Ready")
             self.ui.update_tab_status(slot_index, connected=True, emulating=True)
@@ -1553,7 +1571,8 @@ class GCControllerEnabler:
         def _connect():
             try:
                 slot.emu_mgr.start('dolphin_pipe', slot_index=slot_index,
-                                   cancel_event=cancel)
+                                   cancel_event=cancel,
+                                   controller_type=slot.controller_type)
                 self.root.after(0, lambda: self._on_pipe_connected(slot_index))
             except Exception as e:
                 self.root.after(0, lambda: self._on_pipe_failed(slot_index, e))
@@ -2323,6 +2342,7 @@ def run_headless(mode_override: str = None):
 
         elif etype == 'connected' and si is not None:
             mac = event.get('mac')
+            controller_type = event.get('type', 'gc')
             if not mac:
                 return
 
@@ -2334,7 +2354,9 @@ def run_headless(mode_override: str = None):
             # Register device in known_ble_devices
             devices = slot_calibrations[0].setdefault('known_ble_devices', {})
             if mac.upper() not in devices:
-                devices[mac.upper()] = {}
+                devices[mac.upper()] = {'controller_type': controller_type}
+            elif 'controller_type' not in devices[mac.upper()]:
+                devices[mac.upper()]['controller_type'] = controller_type
 
             # Create per-slot data queue, input processor, and emulation
             cal = slot_calibrations[si]
@@ -2349,7 +2371,8 @@ def run_headless(mode_override: str = None):
 
             try:
                 rumble_cb = _make_headless_rumble_cb(si)
-                emu_mgr.start(slot_mode, slot_index=si, rumble_callback=rumble_cb)
+                emu_mgr.start(slot_mode, slot_index=si, rumble_callback=rumble_cb,
+                              controller_type=controller_type)
                 if slot_mode == 'dsu':
                     port = getattr(emu_mgr.gamepad, 'port', 26760)
                     print(f"[slot {si + 1}] DSU server on port {port}")

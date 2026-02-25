@@ -19,7 +19,10 @@ _SW2_B       = 0x00000004
 _SW2_A       = 0x00000008
 _SW2_R       = 0x00000040
 _SW2_ZR      = 0x00000080
+_SW2_MINUS   = 0x00000100
 _SW2_PLUS    = 0x00000200
+_SW2_RSTICK  = 0x00000400
+_SW2_LSTICK  = 0x00000800
 _SW2_HOME    = 0x00001000
 _SW2_CAPTURE = 0x00002000
 _SW2_CHAT    = 0x00004000
@@ -88,6 +91,9 @@ def translate_ble_to_usb(ble_data: bytes) -> bytes:
     if buttons & _SW2_GR:      b5 |= 0x04
     if buttons & _SW2_GL:      b5 |= 0x08
     if buttons & _SW2_CHAT:    b5 |= 0x10
+    if buttons & _SW2_MINUS:   b5 |= 0x20
+    if buttons & _SW2_LSTICK:  b5 |= 0x40
+    if buttons & _SW2_RSTICK:  b5 |= 0x80
     buf[5] = b5
 
     # Sticks: BLE offset 10-15 -> USB offset 6-11 (same packed 12-bit format)

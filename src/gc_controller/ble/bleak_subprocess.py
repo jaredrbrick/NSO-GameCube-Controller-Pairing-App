@@ -101,7 +101,8 @@ async def do_scan_connect(backend, slot_index, target_address,
         if identifier:
             if slot_ids is not None:
                 slot_ids[slot_index] = identifier
-            send({"e": "connected", "s": slot_index, "mac": identifier})
+            ctype = backend._controller_types.get(identifier, 'gc')
+            send({"e": "connected", "s": slot_index, "mac": identifier, "type": ctype})
         else:
             send({"e": "connect_error", "s": slot_index,
                   "msg": "Connection failed"})
@@ -147,7 +148,8 @@ async def do_connect_device(backend, slot_index, address, slot_ids=None):
         if identifier:
             if slot_ids is not None:
                 slot_ids[slot_index] = identifier
-            send({"e": "connected", "s": slot_index, "mac": identifier})
+            ctype = backend._controller_types.get(identifier, 'gc')
+            send({"e": "connected", "s": slot_index, "mac": identifier, "type": ctype})
         else:
             send({"e": "connect_error", "s": slot_index,
                   "msg": "Connection failed"})

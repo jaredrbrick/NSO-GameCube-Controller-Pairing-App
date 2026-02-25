@@ -27,11 +27,15 @@ _NINTENDO_OUIS = (
 class BumbleBackend:
     """Manages HCI transport and Bumble Device for BLE connections."""
 
+    # Pro Controller 2 characteristic UUID at handle 0x000E
+    _PRO_INPUT_UUID = '7492866c-ec3e-4619-8258-32755ffcc0f8'
+
     def __init__(self):
         self._transport = None
         self._device: Optional[Device] = None
         self._connections: dict[str, object] = {}  # mac -> connection
         self._peers: dict[str, Peer] = {}  # mac -> Peer
+        self._controller_types: dict[str, str] = {}  # mac -> 'gc' | 'pro'
         self._hci_index: Optional[int] = None
 
     @property
@@ -196,6 +200,14 @@ class BumbleBackend:
             for char in service.characteristics:
                 await char.discover_descriptors()
 
+        # Detect controller type from GATT characteristics
+        controller_type = 'gc'
+        for service in peer.services:
+            for char in service.characteristics:
+                if str(char.uuid).lower() == self._PRO_INPUT_UUID:
+                    controller_type = 'pro'
+        self._controller_types[mac] = controller_type
+
         if disconnected.is_set():
             self._connections.pop(mac, None)
             return None
@@ -333,6 +345,7 @@ class BumbleBackend:
     async def disconnect(self, mac_address: str):
         """Disconnect a specific controller."""
         self._peers.pop(mac_address, None)
+        self._controller_types.pop(mac_address, None)
         connection = self._connections.pop(mac_address, None)
         if connection:
             try:

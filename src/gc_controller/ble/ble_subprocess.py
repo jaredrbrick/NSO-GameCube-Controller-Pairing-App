@@ -105,7 +105,8 @@ async def do_scan_connect(backend, slot_index, target_address,
         if mac:
             if slot_macs is not None:
                 slot_macs[slot_index] = mac
-            send({"e": "connected", "s": slot_index, "mac": mac})
+            ctype = backend._controller_types.get(mac, 'gc')
+            send({"e": "connected", "s": slot_index, "mac": mac, "type": ctype})
         else:
             send({"e": "connect_error", "s": slot_index,
                   "msg": "Connection failed"})

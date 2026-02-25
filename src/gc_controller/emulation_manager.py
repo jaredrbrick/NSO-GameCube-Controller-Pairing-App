@@ -12,7 +12,7 @@ import threading
 from typing import Optional, Dict
 
 from .virtual_gamepad import VirtualGamepad, create_gamepad
-from .controller_constants import BUTTON_MAPPING
+from .controller_constants import BUTTON_MAPPING, PRO_BUTTON_MAPPING, CONTROLLER_TYPE_PRO
 from .calibration import CalibrationManager
 
 
@@ -27,9 +27,11 @@ class EmulationManager:
 
     def start(self, mode: str = 'xbox360', slot_index: int = 0,
               cancel_event: threading.Event | None = None,
-              rumble_callback=None) -> None:
+              rumble_callback=None, controller_type: str = 'gc') -> None:
         """Create the virtual gamepad and begin emulation. Raises on failure."""
         self.mode = mode
+        self._controller_type = controller_type
+        self._button_mapping = PRO_BUTTON_MAPPING if controller_type == CONTROLLER_TYPE_PRO else BUTTON_MAPPING
         self.gamepad = create_gamepad(mode, slot_index=slot_index,
                                      cancel_event=cancel_event)
         if rumble_callback and mode in ('xbox360', 'dsu'):
@@ -71,26 +73,32 @@ class EmulationManager:
             right_trigger_calibrated = self._cal_mgr.calibrate_trigger_fast(right_trigger, 'right')
 
             # Update button states
-            for button_name, xbox_button in BUTTON_MAPPING.items():
+            for button_name, xbox_button in self._button_mapping.items():
                 pressed = button_states.get(button_name, False)
                 if pressed:
                     self.gamepad.press_button(xbox_button)
                 else:
                     self.gamepad.release_button(xbox_button)
 
-            # Handle shoulder buttons and triggers
-            l_pressed = button_states.get('L', False)
-            r_pressed = button_states.get('R', False)
-
-            if l_pressed:
-                self.gamepad.left_trigger(255)
+            # Handle triggers (controller-type-dependent)
+            if self._controller_type == CONTROLLER_TYPE_PRO:
+                # Pro Controller: digital triggers from ZL/ZR buttons
+                zl_pressed = button_states.get('ZL', False)
+                zr_pressed = button_states.get('Z', False)
+                self.gamepad.left_trigger(255 if zl_pressed else 0)
+                self.gamepad.right_trigger(255 if zr_pressed else 0)
             else:
-                self.gamepad.left_trigger(left_trigger_calibrated)
-
-            if r_pressed:
-                self.gamepad.right_trigger(255)
-            else:
-                self.gamepad.right_trigger(right_trigger_calibrated)
+                # GC Controller: analog triggers with L/R digital override
+                l_pressed = button_states.get('L', False)
+                r_pressed = button_states.get('R', False)
+                if l_pressed:
+                    self.gamepad.left_trigger(255)
+                else:
+                    self.gamepad.left_trigger(left_trigger_calibrated)
+                if r_pressed:
+                    self.gamepad.right_trigger(255)
+                else:
+                    self.gamepad.right_trigger(right_trigger_calibrated)
 
             self.gamepad.update()
 

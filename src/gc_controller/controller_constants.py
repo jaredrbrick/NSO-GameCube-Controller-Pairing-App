@@ -19,6 +19,10 @@ class ButtonInfo:
         self.name = name
 
 
+# Controller types
+CONTROLLER_TYPE_GC = 'gc'           # NSO GameCube Controller (PID 0x2073)
+CONTROLLER_TYPE_PRO = 'pro'         # Switch 2 Pro Controller (PID 0x2069)
+
 # GameCube controller USB IDs
 VENDOR_ID = 0x057e
 PRODUCT_ID = 0x2073
@@ -47,6 +51,28 @@ BUTTON_MAPPING = {
     'Dpad Right': GamepadButton.DPAD_RIGHT,
 }
 
+# Pro Controller -> Xbox 360 button mapping
+PRO_BUTTON_MAPPING = {
+    'A': GamepadButton.A,
+    'B': GamepadButton.B,
+    'X': GamepadButton.X,
+    'Y': GamepadButton.Y,
+    'Z': GamepadButton.RIGHT_SHOULDER,       # ZR -> RB
+    'ZL': GamepadButton.LEFT_SHOULDER,        # ZL -> LB
+    'R': GamepadButton.RIGHT_THUMB,           # R bumper -> R3
+    'L': GamepadButton.LEFT_THUMB,            # L bumper -> L3
+    'Start/Pause': GamepadButton.START,       # Plus -> Start
+    'Minus': GamepadButton.BACK,              # Minus -> Back
+    'Home': GamepadButton.GUIDE,              # Home -> Guide
+    'Capture': GamepadButton.BACK,            # Capture -> Back
+    'Left Stick': GamepadButton.LEFT_THUMB,   # LS click -> L3
+    'Right Stick': GamepadButton.RIGHT_THUMB, # RS click -> R3
+    'Dpad Up': GamepadButton.DPAD_UP,
+    'Dpad Down': GamepadButton.DPAD_DOWN,
+    'Dpad Left': GamepadButton.DPAD_LEFT,
+    'Dpad Right': GamepadButton.DPAD_RIGHT,
+}
+
 # Button definitions for HID data parsing
 BUTTONS = [
     ButtonInfo(3, 0x01, "B"),
@@ -67,6 +93,9 @@ BUTTONS = [
     ButtonInfo(5, 0x04, "GR"),
     ButtonInfo(5, 0x08, "GL"),
     ButtonInfo(5, 0x10, "Chat"),
+    ButtonInfo(5, 0x20, "Minus"),
+    ButtonInfo(5, 0x40, "Left Stick"),
+    ButtonInfo(5, 0x80, "Right Stick"),
 ]
 
 # Default calibration values (per-slot, runtime only)

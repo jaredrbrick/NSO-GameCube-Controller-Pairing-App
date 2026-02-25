@@ -78,10 +78,14 @@ class BleakBackend:
     to each, verify with a handshake write, then subscribe to notifications.
     """
 
+    # Pro Controller 2 characteristic UUID at handle 0x000E
+    _PRO_INPUT_UUID = '7492866c-ec3e-4619-8258-32755ffcc0f8'
+
     def __init__(self):
         self._clients: dict[str, BleakClient] = {}  # identifier -> BleakClient
         self._write_chars: dict[str, object] = {}   # identifier -> handshake char (command writes)
         self._cmd_chars: dict[str, object] = {}     # identifier -> command channel char (for vibration)
+        self._controller_types: dict[str, str] = {}  # identifier -> 'gc' | 'pro'
         self._last_scan: dict[str, BLEDevice] = {}  # address -> BLEDevice from last scan_only()
 
     @property
@@ -371,6 +375,14 @@ class BleakBackend:
                 if "write" in props or "write-without-response" in props:
                     write_chars.append(char)
 
+        # Detect controller type from GATT characteristic UUIDs
+        controller_type = 'gc'
+        for svc in client.services:
+            for char in svc.characteristics:
+                if char.uuid.lower() == self._PRO_INPUT_UUID:
+                    controller_type = 'pro'
+        self._controller_types[address] = controller_type
+
         if not write_chars:
             _log(f"  No write characteristics — not a controller")
             try:
@@ -522,6 +534,7 @@ class BleakBackend:
         """Disconnect a specific controller."""
         self._write_chars.pop(identifier, None)
         self._cmd_chars.pop(identifier, None)
+        self._controller_types.pop(identifier, None)
         client = self._clients.pop(identifier, None)
         if client and client.is_connected:
             try:
