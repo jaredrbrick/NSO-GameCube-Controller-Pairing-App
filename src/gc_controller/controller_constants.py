@@ -52,19 +52,17 @@ BUTTON_MAPPING = {
 }
 
 # Pro Controller -> Xbox 360 button mapping
+# ZL/ZR are NOT mapped here — they drive the trigger axes (0/255) in EmulationManager
 PRO_BUTTON_MAPPING = {
     'A': GamepadButton.A,
     'B': GamepadButton.B,
     'X': GamepadButton.X,
     'Y': GamepadButton.Y,
-    'Z': GamepadButton.RIGHT_SHOULDER,       # ZR -> RB
-    'ZL': GamepadButton.LEFT_SHOULDER,        # ZL -> LB
-    'R': GamepadButton.RIGHT_THUMB,           # R bumper -> R3
-    'L': GamepadButton.LEFT_THUMB,            # L bumper -> L3
+    'L': GamepadButton.LEFT_SHOULDER,         # L bumper -> LB
+    'R': GamepadButton.RIGHT_SHOULDER,        # R bumper -> RB
     'Start/Pause': GamepadButton.START,       # Plus -> Start
     'Minus': GamepadButton.BACK,              # Minus -> Back
     'Home': GamepadButton.GUIDE,              # Home -> Guide
-    'Capture': GamepadButton.BACK,            # Capture -> Back
     'Left Stick': GamepadButton.LEFT_THUMB,   # LS click -> L3
     'Right Stick': GamepadButton.RIGHT_THUMB, # RS click -> R3
     'Dpad Up': GamepadButton.DPAD_UP,
