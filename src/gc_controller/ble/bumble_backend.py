@@ -25,8 +25,7 @@ _NINTENDO_OUIS = (
     # these, _scan() silently discards the advertisement and the controller is
     # never found -- with no error, because the caller only sees a scan timeout.
     'E0:EF:BF',  # NSO GameCube controller (IEEE registry: "Nintendo Co.,Ltd")
-    '48:F1:EB',  # NSO SNES controller
-    'DC:CD:18',  # NSO N64 controller
+    '94:8E:6D',  # NSO GameCube controller, reported in #42
 )
 
 
